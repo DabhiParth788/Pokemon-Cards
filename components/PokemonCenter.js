@@ -158,10 +158,32 @@ const PokemonCenter = ({
     </Box>
   );
 
+  // Also add animation when valid card enter this box
+  const pokemonCenterCSS = {
+    position: "fixed",
+    bottom: { xs: 10, sm: 20 },
+    left: { xs: 10, sm: 20 },
+    width: { xs: 120, sm: 160, md: 200 },
+    height: { xs: 120, sm: 160, md: 180 },
+    cursor: "pointer",
+    backgroundImage: `url("/image/pokemon_center.png")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    zIndex: 1000,
+    border: "1px solid #ccc",
+    transition: "transform 0.3s ease-in-out", // apply transition globally
+    "&:hover": {
+      transform: "scale(1.1)",
+    },
+    "&:active": {
+      transform: "scale(0.95)", // click/press animation
+    },
+  };
+
   return (
     <Fragment>
       <Box
-        sx={pokemonCenterCSS}
+        sx={{ ...pokemonCenterCSS }}
         onClick={handleShowAllCard}
         ref={centerRef}
       ></Box>

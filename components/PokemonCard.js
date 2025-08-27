@@ -21,6 +21,7 @@ const PokemonCard = ({ children, sx = {}, ...rest }) => {
     currentHP = 0,
     isBattling = false,
     isDefeated = false,
+    element,
   } = children;
   const theme = useTheme();
   const isXS = useMediaQuery(theme.breakpoints.down("sm"));
@@ -36,7 +37,7 @@ const PokemonCard = ({ children, sx = {}, ...rest }) => {
     >
       <Box
         sx={{
-          height: 140,
+          height: { sm: 100, xs: 80 },
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
@@ -65,14 +66,35 @@ const PokemonCard = ({ children, sx = {}, ...rest }) => {
       </Box>
 
       <Divider sx={{ my: 1 }} />
-
-      <Typography
-        variant="h6"
-        align="center"
-        sx={{ fontWeight: "bold", color: "#333" }}
+      <Box
+        sx={{
+          p: 1,
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
       >
-        {name}
-      </Typography>
+        <Typography
+          variant="h6"
+          align="center"
+          sx={{ fontWeight: "bold", color: "#333" }}
+        >
+          {name}
+        </Typography>
+
+        <Box
+          component="img"
+          src={`image/${element}.png`}
+          alt={name}
+          draggable={false}
+          sx={{
+            height: { xs: 20, sm: 25, md: 30 },
+            width: { xs: 20, sm: 25, md: 30 },
+            objectFit: "contain",
+          }}
+        />
+      </Box>
 
       <Box sx={{ mt: 1 }}>
         {filteredStats.map(([label, value]) => (

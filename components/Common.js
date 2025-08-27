@@ -22,40 +22,44 @@ export const pokemons = [
     color: "#00ff88",
     image: "/image/b.png",
     defeatedImage: "/image/b_defeated.png",
-    stats: { HP: 60, Attack: 62, Speed: 45 },
-    currentHP: 60,
+    stats: { HP: 100, Attack: 100, Speed: 100 },
+    currentHP: 100,
     isBattling: false,
     isDefeated: false,
+    element: ["grass"],
   },
   {
     name: "Charizard",
     color: "#ff5733",
     image: "/image/c.png",
     defeatedImage: "/image/c_defeated.png",
-    stats: { HP: 78, Attack: 84, Speed: 100 },
-    currentHP: 78,
+    stats: { HP: 100, Attack: 100, Speed: 100 },
+    currentHP: 100,
     isBattling: false,
     isDefeated: false,
+    element: ["fire"],
   },
   {
     name: "Squirtle",
     color: "#42a5f5",
     image: "/image/s.png",
     defeatedImage: "/image/s_defeated.png",
-    stats: { HP: 44, Attack: 48, Speed: 43 },
-    currentHP: 44,
+    stats: { HP: 100, Attack: 100, Speed: 100 },
+    currentHP: 100,
     isBattling: false,
     isDefeated: false,
+    element: ["water"],
   },
   {
     name: "Pikachu",
     color: "#fdd835",
     image: "/image/p.png",
     defeatedImage: "/image/p_defeated.png",
-    stats: { HP: 35, Attack: 55, Speed: 90 },
-    currentHP: 35,
+    stats: { HP: 100, Attack: 100, Speed: 100 },
+    currentHP: 100,
     isBattling: false,
     isDefeated: false,
+    element: ["electric"],
   },
 ];
 
@@ -112,7 +116,6 @@ export const motionCardCSS = {
   },
   borderRadius: 4,
   position: "relative",
-  cursor: "pointer",
   userSelect: "none",
 };
 
@@ -122,7 +125,6 @@ export const cardStackCSS = {
   right: { xs: 20, sm: 30 },
   width: { xs: 80, sm: 100, md: 120 },
   height: { xs: 120, sm: 160, md: 180 },
-  cursor: "pointer",
 };
 
 export const pokemonCenterCSS = {
@@ -137,4 +139,21 @@ export const pokemonCenterCSS = {
   backgroundPosition: "center",
 };
 
-export const battlefieldCSS = {};
+export const elementChart = {
+  water: {
+    strong: ["fire"],
+    weak: ["grass", "electric"],
+  },
+  fire: {
+    strong: ["grass"],
+    weak: ["water", "electric"],
+  },
+  grass: {
+    strong: ["water", "electric"],
+    weak: ["fire"],
+  },
+  electric: {
+    strong: ["water", "flying"],
+    weak: ["grass", "ground"],
+  },
+};

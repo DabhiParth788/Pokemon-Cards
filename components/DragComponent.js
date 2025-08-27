@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import {
   cardBackCSS,
   cardStackCSS,
+  elementChart,
   isOverlapping,
   playgroundCSS,
   pokemons,
@@ -20,6 +21,42 @@ import PokemonCenter from "./PokemonCenter";
 import PokemonCard from "./PokemonCard";
 
 const MotionCard = motion(PokemonCard);
+
+const checkIfAPowerfulToBe = (attacker, defender) => {
+  const attackerElements = attacker.element || [];
+  console.log("attackerElements: ", attackerElements);
+  const defenderElements = defender.element || [];
+  console.log("defenderElements: ", defenderElements);
+
+  for (let ae of attackerElements) {
+    if (!elementChart[ae]) continue;
+    for (let de of defenderElements) {
+      if (elementChart[ae].strong.includes(de)) return "strong";
+      if (elementChart[ae].weak.includes(de)) return "weak";
+    }
+  }
+  return "neutral";
+};
+const calculateDamage = (attacker, defender) => {
+  const baseDamage = (attacker.stats.Attack + attacker.stats.Speed) * 0.1;
+  console.log("baseDamage: ", baseDamage);
+
+  let damage = Math.max(0, baseDamage);
+  console.log("damage: ", damage);
+
+  const effectiveness = checkIfAPowerfulToBe(attacker, defender);
+  console.log(
+    " effectiveness: ",
+    attacker?.name,
+    effectiveness,
+    defender?.name
+  );
+
+  // if (effectiveness === "strong") damage *= 1.5; // bonus //remove for now
+  if (effectiveness === "weak") damage *= 0.5; // reduced
+
+  return Math.max(1, Math.floor(damage)); // at least 1 dmg
+};
 
 // CardsStack: draws from pokemons that are not in battlefield, not healing, not healed
 const CardsStack = ({
@@ -55,7 +92,13 @@ const CardsStack = ({
   };
 
   return (
-    <Box sx={cardStackCSS} onClick={handleDraw}>
+    <Box
+      sx={{
+        ...cardStackCSS,
+        cursor: available.length > 0 ? "pointer" : "default",
+      }}
+      onClick={handleDraw}
+    >
       {available.slice(0, 5).map((_, i, arr) => {
         const offsetY = i * -10;
         const rotation = (i - arr.length / 2) * 5;
@@ -201,8 +244,11 @@ export default function DragComponent() {
             cb = byName.get(b);
           if (!ca || !cb) continue;
           if (ca.isDefeated || cb.isDefeated) continue;
-          const dmgToA = (cb.stats.Attack + cb.stats.Speed) * 0.1;
-          const dmgToB = (ca.stats.Attack + ca.stats.Speed) * 0.1;
+
+          const dmgToA = calculateDamage(cb, ca);
+          console.log("dmgToA: ", dmgToA);
+          const dmgToB = calculateDamage(ca, cb);
+          console.log("dmgToB: ", dmgToB);
           applyDamage(a, dmgToA);
           applyDamage(b, dmgToB);
         }
@@ -249,7 +295,7 @@ export default function DragComponent() {
         let changed = false;
         const next = prev.map((c) => {
           const maxHP = c.stats.HP;
-          const heal = Math.max(1, Math.floor(maxHP * 0.05));
+          const heal = Math.max(1, Math.floor(maxHP * 0.3));
           const nextHP = Math.min(maxHP, (c.currentHP ?? 0) + heal);
           if (nextHP !== c.currentHP) {
             changed = true;
