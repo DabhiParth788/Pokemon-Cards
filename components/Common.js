@@ -67,3 +67,60 @@ export function isOverlapping(rect1, rect2) {
     rect1.top > rect2.bottom
   );
 }
+
+export const cardBackCSS = {
+  position: "absolute",
+  left: "50%",
+  width: 100,
+  height: 140,
+  backgroundImage: `url("/image/Cardback.png")`,
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  borderRadius: 2,
+  boxShadow: 0,
+  transition: "all 0.3s ease-in-out",
+};
+export const playgroundCSS = {
+  width: "100%",
+  minHeight: "100vh",
+  backgroundColor: "#f4f4f4",
+  p: { xs: 2, sm: 3, md: 4 },
+  display: "flex",
+  flexWrap: "wrap",
+  gap: { xs: 2, sm: 3, md: 4 },
+  alignItems: "center",
+  justifyContent: "center",
+  position: "relative", // Changed from border debugging
+};
+
+export const motionCardCSS = {
+  p: 2,
+  boxShadow: 6,
+  background: "linear-gradient(135deg, #fefefe, #e0f7f1)",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+  width: {
+    xs: 180, // <600px
+    sm: 220, // 600px–960px
+    md: 250, // >960px
+  },
+  height: {
+    xs: 260,
+    sm: 320,
+    md: 350,
+  },
+  borderRadius: 4,
+  position: "relative",
+  cursor: "pointer",
+  userSelect: "none",
+};
+
+export const cardStackCSS = {
+  position: "fixed",
+  bottom: { xs: 10, sm: 20 },
+  right: { xs: 10, sm: 20 },
+  width: { xs: 80, sm: 100, md: 120 },
+  height: { xs: 120, sm: 160, md: 180 },
+  cursor: "pointer",
+};

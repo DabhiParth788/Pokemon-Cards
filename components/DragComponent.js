@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -10,67 +10,28 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { isOverlapping, pokemons } from "./Common";
-
-// Style
-const cardBackCSS = {
-  position: "absolute",
-  left: "50%",
-  width: 100,
-  height: 140,
-  backgroundImage: `url("/image/Cardback.png")`,
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  borderRadius: 2,
-  boxShadow: 0,
-  transition: "all 0.3s ease-in-out",
-};
-const playgroundCSS = {
-  width: "100%",
-  minHeight: "100vh",
-  backgroundColor: "#f4f4f4",
-  p: { xs: 2, sm: 3, md: 4 },
-  display: "flex",
-  flexWrap: "wrap",
-  gap: { xs: 2, sm: 3, md: 4 },
-  alignItems: "center",
-  justifyContent: "center",
-  position: "relative", // Changed from border debugging
-};
-
-const motionCardCSS = {
-  p: 2,
-  boxShadow: 6,
-  background: "linear-gradient(135deg, #fefefe, #e0f7f1)",
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "space-between",
-  width: {
-    xs: 180, // <600px
-    sm: 220, // 600px–960px
-    md: 250, // >960px
+import {
+  cardBackCSS,
+  cardStackCSS,
+  isOverlapping,
+  motionCardCSS,
+  playgroundCSS,
+  pokemons,
+  /* 
+  {
+  name: string,
+  image: string,
+  defeatedImage: string, 
+  color: string,
+  stats: {
+    HP: number, Attack: number, Speed: number,
   },
-  height: {
-    xs: 260,
-    sm: 320,
-    md: 350,
-  },
-  borderRadius: 4,
-  position: "relative",
-  cursor: "pointer",
-  userSelect: "none",
-};
-
-const cardStackCSS = {
-  position: "fixed",
-  bottom: { xs: 10, sm: 20 },
-  right: { xs: 10, sm: 20 },
-  width: { xs: 80, sm: 100, md: 120 },
-  height: { xs: 120, sm: 160, md: 180 },
-  cursor: "pointer",
-};
-
-// styles above
+  currentHP: number, 
+  isBattling: boolean,
+  isDefeated: boolean, 
+} 
+*/
+} from "./Common";
 
 const PokemonCard = ({ children, sx, ...rest }) => {
   const {
@@ -103,7 +64,6 @@ const PokemonCard = ({ children, sx, ...rest }) => {
           alignItems: "center",
         }}
       >
-        {/* Also i would like to add two sword image ->public/sword.png while is in fighting and show defated image based on which pokemon like i have image for normal and defeatedImage when its defeated */}
         <img
           src={isDefeated ? defeatedImage : image}
           alt={name}
@@ -119,7 +79,7 @@ const PokemonCard = ({ children, sx, ...rest }) => {
               position: "absolute",
               top: 0,
               right: 0,
-              width: "20%", // Responsive
+              width: "20%",
               maxWidth: 32,
               height: "auto",
             }}
@@ -132,10 +92,7 @@ const PokemonCard = ({ children, sx, ...rest }) => {
       <Typography
         variant="h6"
         align="center"
-        sx={{
-          fontWeight: "bold",
-          color: "#333",
-        }}
+        sx={{ fontWeight: "bold", color: "#333" }}
       >
         {name}
       </Typography>
@@ -169,9 +126,9 @@ const PokemonCard = ({ children, sx, ...rest }) => {
     </Box>
   );
 };
-
 const MotionCard = motion(PokemonCard);
 
+// Stack: draw new unique Pokémon
 const CardsStack = ({ setCards, cards }) => {
   const availablePokemons = pokemons.filter(
     (pokemon) => !cards.some((card) => card.name === pokemon.name)
@@ -197,7 +154,6 @@ const CardsStack = ({ setCards, cards }) => {
       {availablePokemons.slice(0, 5).map((_, index, arr) => {
         const offsetY = index * -10;
         const rotation = (index - arr.length / 2) * 5;
-
         return (
           <Box
             key={index}
@@ -217,86 +173,164 @@ const CardsStack = ({ setCards, cards }) => {
 export default function DragComponent() {
   const constraintsRef = useRef(null);
   const [cards, setCards] = useState([]);
-  const [battlingPairs, setBattlingPairs] = useState([]);
-
-  const theme = useTheme();
-  const isXS = useMediaQuery(theme.breakpoints.down("sm"));
-
+  const [battlingPairs, setBattlingPairs] = useState([]); // [["A","B"], ["C","D"]]
   const [stackOrder, setStackOrder] = useState([]);
 
   const cardRefs = useRef({});
   const [cardBounds, setCardBounds] = useState({});
+
+  // --- Helpers ---
+  const aliveNames = useMemo(
+    () => cards.filter((c) => !c.isDefeated).map((c) => c.name),
+    [cards]
+  );
+
+  const nameToCard = useCallback(
+    (name) => cards.find((c) => c.name === name),
+    [cards]
+  );
+
+  // Update bounds (alive only) on drag/resize/layout
   const updateCardBounds = useCallback(() => {
     const bounds = {};
     cards.forEach((card) => {
-      const ref = cardRefs.current[card.name];
-      if (ref) {
-        bounds[card.name] = ref.getBoundingClientRect();
+      if (!card?.isDefeated) {
+        const ref = cardRefs.current[card.name];
+        if (ref) bounds[card.name] = ref.getBoundingClientRect();
       }
     });
     setCardBounds(bounds);
   }, [cards]);
 
-  const detectOverlaps = useCallback(() => {
-    const overlappingPairs = [];
-
+  // Build overlapping edges among ALIVE cards
+  const detectOverlapsEdges = useCallback(() => {
+    const edges = [];
     const names = Object.keys(cardBounds);
 
     for (let i = 0; i < names.length; i++) {
       for (let j = i + 1; j < names.length; j++) {
-        const cardA = names[i];
-        const cardB = names[j];
-
-        const rectA = cardBounds[cardA];
-        const rectB = cardBounds[cardB];
-
-        if (rectA && rectB && isOverlapping(rectA, rectB)) {
-          overlappingPairs.push([cardA, cardB]);
+        const a = names[i];
+        const b = names[j];
+        const rectA = cardBounds[a];
+        const rectB = cardBounds[b];
+        if (!rectA || !rectB) continue;
+        if (isOverlapping(rectA, rectB)) {
+          const ca = nameToCard(a);
+          const cb = nameToCard(b);
+          // Ignore defeated just in case
+          if (!ca?.isDefeated && !cb?.isDefeated) {
+            edges.push([a, b]);
+          }
         }
       }
     }
+    return edges;
+  }, [cardBounds, nameToCard]);
 
-    return overlappingPairs;
-  }, [cardBounds]);
+  // From overlap edges, choose disjoint 1v1 pairs (greedy)
+  const choosePairs = useCallback(
+    (edges) => {
+      const used = new Set();
+      const pairs = [];
+      for (const [a, b] of edges) {
+        if (used.has(a) || used.has(b)) continue; // already in a pair
+        // both must be alive and not already paired
+        if (aliveNames.includes(a) && aliveNames.includes(b)) {
+          used.add(a);
+          used.add(b);
+          pairs.push([a, b]);
+        }
+      }
+      return pairs;
+    },
+    [aliveNames]
+  );
 
-  // 🆕 Update bounds when cards change or on drag
+  // Recompute pairs whenever bounds change (dragging), or cards change (defeats)
   useEffect(() => {
-    const overlapping = detectOverlaps();
-    setBattlingPairs(overlapping);
-  }, [cardBounds, detectOverlaps]);
+    const edges = detectOverlapsEdges();
+    const pairs = choosePairs(edges);
+    setBattlingPairs((prev) => {
+      // If set actually changed, update isBattling flags in cards
+      const prevKey = prev
+        .map((p) => p.slice().sort().join("|"))
+        .sort()
+        .join(",");
+      const nextKey = pairs
+        .map((p) => p.slice().sort().join("|"))
+        .sort()
+        .join(",");
+      if (prevKey === nextKey) return prev;
+      // Set isBattling true for pair members, false for others (alive)
+      const namesInPairs = new Set(pairs.flat());
+      setCards((prevCards) =>
+        prevCards.map((c) =>
+          c.isDefeated ? c : { ...c, isBattling: namesInPairs.has(c.name) }
+        )
+      );
+      return pairs;
+    });
+  }, [detectOverlapsEdges, choosePairs]);
+
+  // Apply damage every 500ms ONLY to current pairs
   useEffect(() => {
     const interval = setInterval(() => {
+      if (battlingPairs.length === 0) return;
+
       setCards((prevCards) => {
-        const updated = [...prevCards];
+        // Build a quick index
+        const byName = new Map(prevCards.map((c) => [c.name, c]));
+        let changed = false;
 
-        battlingPairs.forEach(([a, b]) => {
-          const cardA = updated.find((c) => c.name === a);
-          const cardB = updated.find((c) => c.name === b);
+        // Compute next state immutably
+        const next = prevCards.map((c) => ({ ...c }));
 
-          if (!cardA || !cardB || cardA.isDefeated || cardB.isDefeated) return;
+        const applyDamage = (name, dmg) => {
+          const idx = next.findIndex((x) => x.name === name);
+          if (idx === -1) return;
+          const card = next[idx];
+          if (card.isDefeated) return;
+          const newHP = Math.max(0, card.currentHP - dmg);
+          if (newHP !== card.currentHP) {
+            card.currentHP = newHP;
+            changed = true;
+          }
+          if (newHP === 0 && !card.isDefeated) {
+            card.isDefeated = true;
+            card.isBattling = false; // defeated can't be battling
+            changed = true;
+          }
+        };
 
-          // Battle formula
-          const damageToA = (cardB.stats.Attack + cardB.stats.Speed) * 0.1;
-          const damageToB = (cardA.stats.Attack + cardA.stats.Speed) * 0.1;
+        for (const [a, b] of battlingPairs) {
+          const ca = byName.get(a);
+          const cb = byName.get(b);
+          if (!ca || !cb) continue;
+          if (ca.isDefeated || cb.isDefeated) continue;
 
-          cardA.currentHP = Math.max(0, cardA.currentHP - damageToA);
-          cardB.currentHP = Math.max(0, cardB.currentHP - damageToB);
+          const damageToA = (cb.stats.Attack + cb.stats.Speed) * 0.1;
+          const damageToB = (ca.stats.Attack + ca.stats.Speed) * 0.1;
 
-          // Check for defeat
-          if (cardA.currentHP === 0) cardA.isDefeated = true;
-          if (cardB.currentHP === 0) cardB.isDefeated = true;
+          applyDamage(a, damageToA);
+          applyDamage(b, damageToB);
+        }
 
-          cardA.isBattling = true;
-          cardB.isBattling = true;
-        });
-
-        return updated;
+        return changed ? next : prevCards;
       });
-    }, 1000); // 1 second tick
+    }, 500);
 
     return () => clearInterval(interval);
   }, [battlingPairs]);
 
+  // If a card becomes defeated, ensure it’s removed from pairs on next bounds recompute
+  // Also: defeated cards shouldn't be interactive (already in your sx)
+  useEffect(() => {
+    // When defeat happens, pairs will be recomputed naturally on next drag or interval tick,
+    // but also trigger a bounds recalculation to speed it up.
+    updateCardBounds();
+  }, [cards, updateCardBounds]);
+
+  // z-index click handling
   const handleClick = (clickedName) => {
     setStackOrder((prevOrder) => {
       const filtered = prevOrder.filter((name) => name !== clickedName);
@@ -304,24 +338,25 @@ export default function DragComponent() {
     });
   };
 
+  // Keep bounds fresh on mount and on window resize
   useEffect(() => {
-    const overlapping = detectOverlaps();
-    if (overlapping.length > 0) {
-      console.log("Overlapping pairs:", overlapping);
-    }
-  }, [cardBounds, detectOverlaps]);
+    updateCardBounds();
+    const onResize = () => updateCardBounds();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [updateCardBounds]);
 
   return (
     <Box ref={constraintsRef} sx={playgroundCSS}>
       {cards.map((p) => {
         const zIndex = stackOrder.indexOf(p.name) + 1;
-
         return (
           <MotionCard
             key={p.name}
             drag={!p.isDefeated}
             ref={(el) => (cardRefs.current[p.name] = el)}
             onDrag={updateCardBounds}
+            onDragEnd={updateCardBounds}
             dragConstraints={constraintsRef}
             dragElastic={0.2}
             initial={{ y: -50, opacity: 0 }}

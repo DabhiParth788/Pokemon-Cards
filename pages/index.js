@@ -9,9 +9,7 @@ export default function Home() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <div style={{ padding: 20 }}>
-        <DragComponent />
-      </div>
+      <DragComponent />
     </ThemeProvider>
   );
 }
