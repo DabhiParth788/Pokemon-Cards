@@ -1,166 +1,71 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Box,
-  Typography,
-  Divider,
-  LinearProgress,
-  useTheme,
-  useMediaQuery,
-} from "@mui/material";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Box } from "@mui/material";
 import { motion } from "framer-motion";
 import {
   cardBackCSS,
   cardStackCSS,
   isOverlapping,
-  motionCardCSS,
   playgroundCSS,
   pokemons,
-  /* 
-  {
-  name: string,
-  image: string,
-  defeatedImage: string, 
-  color: string,
-  stats: {
-    HP: number, Attack: number, Speed: number,
-  },
-  currentHP: number, 
-  isBattling: boolean,
-  isDefeated: boolean, 
-} 
-*/
 } from "./Common";
+import PokemonCenter from "./PokemonCenter";
+import PokemonCard from "./PokemonCard";
 
-const PokemonCard = ({ children, sx, ...rest }) => {
-  const {
-    image,
-    name,
-    stats = {},
-    currentHP,
-    isBattling,
-    isDefeated,
-    defeatedImage,
-  } = children;
-
-  const theme = useTheme();
-  const isXS = useMediaQuery(theme.breakpoints.down("sm"));
-
-  const filteredStats = isXS
-    ? Object.entries(stats).filter(([label]) => label === "HP")
-    : Object.entries(stats);
-
-  return (
-    <Box
-      sx={{ ...motionCardCSS, opacity: isDefeated ? 0.5 : 1, ...sx }}
-      {...rest}
-    >
-      <Box
-        sx={{
-          height: 140,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <img
-          src={isDefeated ? defeatedImage : image}
-          alt={name}
-          style={{ maxHeight: "100%", maxWidth: "100%" }}
-          draggable={false}
-        />
-
-        {isBattling && !isDefeated && (
-          <img
-            src="/image/sword.png"
-            alt="battle"
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              width: "20%",
-              maxWidth: 32,
-              height: "auto",
-            }}
-          />
-        )}
-      </Box>
-
-      <Divider sx={{ my: 1 }} />
-
-      <Typography
-        variant="h6"
-        align="center"
-        sx={{ fontWeight: "bold", color: "#333" }}
-      >
-        {name}
-      </Typography>
-
-      <Box sx={{ mt: 1 }}>
-        {filteredStats.map(([label, value]) => (
-          <Box key={label} sx={{ mb: 1 }}>
-            <Typography variant="body2" sx={{ color: "#666" }}>
-              {label.toUpperCase()}
-            </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={label === "HP" ? (currentHP / stats.HP) * 100 : value}
-              sx={{
-                height: 8,
-                borderRadius: 5,
-                backgroundColor: "#eee",
-                "& .MuiLinearProgress-bar": {
-                  backgroundColor:
-                    label === "HP"
-                      ? currentHP > 30
-                        ? "#4caf50"
-                        : "#f44336"
-                      : "#4caf50",
-                },
-              }}
-            />
-          </Box>
-        ))}
-      </Box>
-    </Box>
-  );
-};
 const MotionCard = motion(PokemonCard);
 
-// Stack: draw new unique Pokémon
-const CardsStack = ({ setCards, cards }) => {
-  const availablePokemons = pokemons.filter(
-    (pokemon) => !cards.some((card) => card.name === pokemon.name)
+// CardsStack: draws from pokemons that are not in battlefield, not healing, not healed
+const CardsStack = ({
+  setCards,
+  battlefieldCards,
+  centerCards,
+  healedCards,
+  setHealedCards,
+}) => {
+  // this will show all cards except which are in battlefield
+  const available = pokemons.filter(
+    (p) =>
+      !battlefieldCards.some((c) => c.name === p.name) &&
+      !centerCards.some((c) => c.name === p.name)
+    // &&!healedCards.some((c) => c.name === p.name)
   );
 
   const handleDraw = () => {
-    if (availablePokemons.length === 0) return;
+    if (available.length === 0) return;
     const randomPokemon =
-      availablePokemons[Math.floor(Math.random() * availablePokemons.length)];
-    setCards((prevCards) => [
-      ...prevCards,
+      available[Math.floor(Math.random() * available.length)];
+
+    setCards((prev) => [
+      ...prev,
       {
         ...randomPokemon,
         currentHP: randomPokemon.stats.HP,
         isBattling: false,
         isDefeated: false,
+        isHealing: false,
       },
     ]);
   };
 
   return (
     <Box sx={cardStackCSS} onClick={handleDraw}>
-      {availablePokemons.slice(0, 5).map((_, index, arr) => {
-        const offsetY = index * -10;
-        const rotation = (index - arr.length / 2) * 5;
+      {available.slice(0, 5).map((_, i, arr) => {
+        const offsetY = i * -10;
+        const rotation = (i - arr.length / 2) * 5;
         return (
           <Box
-            key={index}
+            key={i}
             sx={{
               transform: `translateX(-50%) rotate(${rotation}deg)`,
               bottom: offsetY,
-              zIndex: index,
+              zIndex: i,
               ...cardBackCSS,
             }}
           />
@@ -172,86 +77,73 @@ const CardsStack = ({ setCards, cards }) => {
 
 export default function DragComponent() {
   const constraintsRef = useRef(null);
-  const [cards, setCards] = useState([]);
-  const [battlingPairs, setBattlingPairs] = useState([]); // [["A","B"], ["C","D"]]
+  const centerRef = useRef(null);
+
+  // Pools
+  const [cards, setCards] = useState([]); // battlefield cards
+  const [centerCards, setCenterCards] = useState([]); // healing
+  const [healedCards, setHealedCards] = useState([]); // healed bench
+
   const [stackOrder, setStackOrder] = useState([]);
+  const [battlingPairs, setBattlingPairs] = useState([]);
 
   const cardRefs = useRef({});
   const [cardBounds, setCardBounds] = useState({});
 
-  // --- Helpers ---
-  const aliveNames = useMemo(
-    () => cards.filter((c) => !c.isDefeated).map((c) => c.name),
-    [cards]
-  );
-
-  const nameToCard = useCallback(
-    (name) => cards.find((c) => c.name === name),
-    [cards]
-  );
-
-  // Update bounds (alive only) on drag/resize/layout
+  // update bounds (alive on battlefield only)
   const updateCardBounds = useCallback(() => {
     const bounds = {};
     cards.forEach((card) => {
       if (!card?.isDefeated) {
-        const ref = cardRefs.current[card.name];
-        if (ref) bounds[card.name] = ref.getBoundingClientRect();
+        const el = cardRefs.current[card.name];
+        if (el?.getBoundingClientRect)
+          bounds[card.name] = el.getBoundingClientRect();
       }
     });
     setCardBounds(bounds);
   }, [cards]);
 
-  // Build overlapping edges among ALIVE cards
+  // overlap detection among battlefield alive cards
   const detectOverlapsEdges = useCallback(() => {
-    const edges = [];
     const names = Object.keys(cardBounds);
-
+    const edges = [];
     for (let i = 0; i < names.length; i++) {
       for (let j = i + 1; j < names.length; j++) {
-        const a = names[i];
-        const b = names[j];
-        const rectA = cardBounds[a];
-        const rectB = cardBounds[b];
+        const a = names[i],
+          b = names[j];
+        const rectA = cardBounds[a],
+          rectB = cardBounds[b];
         if (!rectA || !rectB) continue;
         if (isOverlapping(rectA, rectB)) {
-          const ca = nameToCard(a);
-          const cb = nameToCard(b);
-          // Ignore defeated just in case
-          if (!ca?.isDefeated && !cb?.isDefeated) {
-            edges.push([a, b]);
-          }
+          const ca = cards.find((c) => c.name === a);
+          const cb = cards.find((c) => c.name === b);
+          if (ca && cb && !ca.isDefeated && !cb.isDefeated) edges.push([a, b]);
         }
       }
     }
     return edges;
-  }, [cardBounds, nameToCard]);
+  }, [cardBounds, cards]);
 
-  // From overlap edges, choose disjoint 1v1 pairs (greedy)
-  const choosePairs = useCallback(
-    (edges) => {
-      const used = new Set();
-      const pairs = [];
-      for (const [a, b] of edges) {
-        if (used.has(a) || used.has(b)) continue; // already in a pair
-        // both must be alive and not already paired
-        if (aliveNames.includes(a) && aliveNames.includes(b)) {
-          used.add(a);
-          used.add(b);
-          pairs.push([a, b]);
-        }
-      }
-      return pairs;
-    },
-    [aliveNames]
-  );
+  // choose disjoint pairs (greedy)
+  const choosePairs = useCallback((edges) => {
+    const used = new Set();
+    const pairs = [];
+    for (const [a, b] of edges) {
+      if (used.has(a) || used.has(b)) continue;
+      used.add(a);
+      used.add(b);
+      pairs.push([a, b]);
+    }
+    return pairs;
+  }, []);
 
-  // Recompute pairs whenever bounds change (dragging), or cards change (defeats)
+  // Recompute pairs & update isBattling flags — only when something changed
   useEffect(() => {
     const edges = detectOverlapsEdges();
     const pairs = choosePairs(edges);
+
+    // update battlingPairs only if changed (by key)
     setBattlingPairs((prev) => {
-      // If set actually changed, update isBattling flags in cards
       const prevKey = prev
         .map((p) => p.slice().sort().join("|"))
         .sort()
@@ -260,30 +152,32 @@ export default function DragComponent() {
         .map((p) => p.slice().sort().join("|"))
         .sort()
         .join(",");
-      if (prevKey === nextKey) return prev;
-      // Set isBattling true for pair members, false for others (alive)
+      return prevKey === nextKey ? prev : pairs;
+    });
+
+    // update isBattling flags only if needed
+    setCards((prev) => {
+      let changed = false;
       const namesInPairs = new Set(pairs.flat());
-      setCards((prevCards) =>
-        prevCards.map((c) =>
-          c.isDefeated ? c : { ...c, isBattling: namesInPairs.has(c.name) }
-        )
-      );
-      return pairs;
+      const next = prev.map((c) => {
+        if (c.isDefeated) return c;
+        const should = namesInPairs.has(c.name);
+        if (c.isBattling === should) return c;
+        changed = true;
+        return { ...c, isBattling: should };
+      });
+      return changed ? next : prev;
     });
   }, [detectOverlapsEdges, choosePairs]);
 
-  // Apply damage every 500ms ONLY to current pairs
+  // battle damage loop (500ms)
   useEffect(() => {
     const interval = setInterval(() => {
       if (battlingPairs.length === 0) return;
-
-      setCards((prevCards) => {
-        // Build a quick index
-        const byName = new Map(prevCards.map((c) => [c.name, c]));
+      setCards((prev) => {
+        const byName = new Map(prev.map((c) => [c.name, c]));
+        const next = prev.map((c) => ({ ...c }));
         let changed = false;
-
-        // Compute next state immutably
-        const next = prevCards.map((c) => ({ ...c }));
 
         const applyDamage = (name, dmg) => {
           const idx = next.findIndex((x) => x.name === name);
@@ -297,48 +191,104 @@ export default function DragComponent() {
           }
           if (newHP === 0 && !card.isDefeated) {
             card.isDefeated = true;
-            card.isBattling = false; // defeated can't be battling
+            card.isBattling = false;
             changed = true;
           }
         };
 
         for (const [a, b] of battlingPairs) {
-          const ca = byName.get(a);
-          const cb = byName.get(b);
+          const ca = byName.get(a),
+            cb = byName.get(b);
           if (!ca || !cb) continue;
           if (ca.isDefeated || cb.isDefeated) continue;
-
-          const damageToA = (cb.stats.Attack + cb.stats.Speed) * 0.1;
-          const damageToB = (ca.stats.Attack + ca.stats.Speed) * 0.1;
-
-          applyDamage(a, damageToA);
-          applyDamage(b, damageToB);
+          const dmgToA = (cb.stats.Attack + cb.stats.Speed) * 0.1;
+          const dmgToB = (ca.stats.Attack + ca.stats.Speed) * 0.1;
+          applyDamage(a, dmgToA);
+          applyDamage(b, dmgToB);
         }
 
-        return changed ? next : prevCards;
+        return changed ? next : prev;
       });
     }, 500);
 
     return () => clearInterval(interval);
   }, [battlingPairs]);
 
-  // If a card becomes defeated, ensure it’s removed from pairs on next bounds recompute
-  // Also: defeated cards shouldn't be interactive (already in your sx)
+  // handle drag end -> check drop to centerRef
+  const handleCardDrop = useCallback(
+    (name) => {
+      const el = cardRefs.current[name];
+      const centerEl = centerRef.current;
+      if (!el || !centerEl) return;
+
+      const rectCard = el.getBoundingClientRect();
+      const rectCenter = centerEl.getBoundingClientRect();
+      const dragged = cards.find((c) => c.name === name);
+      if (!dragged) return;
+
+      const maxHP = dragged.stats.HP;
+      if ((dragged.currentHP ?? 0) >= maxHP) return; // full HP skip
+
+      if (isOverlapping(rectCard, rectCenter)) {
+        // remove from battlefield and add to center
+        setCards((prev) => prev.filter((c) => c.name !== name));
+        setCenterCards((prev) => {
+          if (prev.some((c) => c.name === name)) return prev;
+          return [...prev, { ...dragged, isHealing: true }];
+        });
+      }
+    },
+    [cards]
+  );
+
+  // healing loop for center cards (1s)
   useEffect(() => {
-    // When defeat happens, pairs will be recomputed naturally on next drag or interval tick,
-    // but also trigger a bounds recalculation to speed it up.
-    updateCardBounds();
-  }, [cards, updateCardBounds]);
+    if (centerCards.length === 0) return;
+    const interval = setInterval(() => {
+      setCenterCards((prev) => {
+        let changed = false;
+        const next = prev.map((c) => {
+          const maxHP = c.stats.HP;
+          const heal = Math.max(1, Math.floor(maxHP * 0.05));
+          const nextHP = Math.min(maxHP, (c.currentHP ?? 0) + heal);
+          if (nextHP !== c.currentHP) {
+            changed = true;
+            return { ...c, currentHP: nextHP };
+          }
+          return c;
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [centerCards.length]);
 
-  // z-index click handling
-  const handleClick = (clickedName) => {
-    setStackOrder((prevOrder) => {
-      const filtered = prevOrder.filter((name) => name !== clickedName);
-      return [...filtered, clickedName];
+  // when fully healed: move from center -> healedCards (bench)
+  useEffect(() => {
+    const fully = centerCards.filter((c) => (c.currentHP ?? 0) >= c.stats.HP);
+    if (fully.length === 0) return;
+    setCenterCards((prev) =>
+      prev.filter((c) => (c.currentHP ?? 0) < c.stats.HP)
+    );
+    // To put the pokemon to healed stage
+
+    // setHealedCards((prev) => {
+    //   const names = new Set(prev.map((p) => p.name));
+    //   const toAdd = fully
+    //     .filter((p) => !names.has(p.name))
+    //     .map((p) => ({ ...p, isHealing: false, isDefeated: false }));
+    //   return [...prev, ...toAdd];
+    // });
+  }, [centerCards]);
+
+  // z-index click
+  const handleClick = (name) =>
+    setStackOrder((prev) => {
+      const filtered = prev.filter((n) => n !== name);
+      return [...filtered, name];
     });
-  };
 
-  // Keep bounds fresh on mount and on window resize
+  // keep bounds updated
   useEffect(() => {
     updateCardBounds();
     const onResize = () => updateCardBounds();
@@ -353,19 +303,17 @@ export default function DragComponent() {
         return (
           <MotionCard
             key={p.name}
-            drag={!p.isDefeated}
+            drag
             ref={(el) => (cardRefs.current[p.name] = el)}
-            onDrag={updateCardBounds}
-            onDragEnd={updateCardBounds}
+            onDrag={() => updateCardBounds()}
+            onDragEnd={() => {
+              updateCardBounds();
+              handleCardDrop(p.name);
+            }}
             dragConstraints={constraintsRef}
             dragElastic={0.2}
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             sx={{
               zIndex: p.isDefeated ? 0 : zIndex,
-              pointerEvents: p.isDefeated ? "none" : "auto",
               filter: p.isDefeated ? "grayscale(100%)" : "none",
             }}
             onClick={() => handleClick(p.name)}
@@ -375,7 +323,22 @@ export default function DragComponent() {
         );
       })}
 
-      <CardsStack setCards={setCards} cards={cards} />
+      <CardsStack
+        setCards={setCards}
+        battlefieldCards={cards}
+        centerCards={centerCards}
+        healedCards={healedCards}
+        setHealedCards={setHealedCards}
+      />
+
+      <PokemonCenter
+        centerRef={centerRef}
+        centerCards={centerCards}
+        healedCards={healedCards}
+        setCenterCards={setCenterCards}
+        setHealedCards={setHealedCards}
+        setCards={setCards}
+      />
     </Box>
   );
 }

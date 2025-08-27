@@ -71,8 +71,8 @@ export function isOverlapping(rect1, rect2) {
 export const cardBackCSS = {
   position: "absolute",
   left: "50%",
-  width: 100,
-  height: 140,
+  width: { xs: 120, sm: 160, md: 200 },
+  height: { xs: 120, sm: 160, md: 180 },
   backgroundImage: `url("/image/Cardback.png")`,
   backgroundSize: "cover",
   backgroundPosition: "center",
@@ -118,9 +118,23 @@ export const motionCardCSS = {
 
 export const cardStackCSS = {
   position: "fixed",
-  bottom: { xs: 10, sm: 20 },
-  right: { xs: 10, sm: 20 },
+  bottom: { xs: 50, sm: 50 },
+  right: { xs: 20, sm: 30 },
   width: { xs: 80, sm: 100, md: 120 },
   height: { xs: 120, sm: 160, md: 180 },
   cursor: "pointer",
 };
+
+export const pokemonCenterCSS = {
+  position: "fixed",
+  bottom: { xs: 10, sm: 20 },
+  left: { xs: 10, sm: 20 },
+  width: { xs: 120, sm: 160, md: 200 },
+  height: { xs: 120, sm: 160, md: 180 },
+  cursor: "pointer",
+  backgroundImage: `url("/image/pokemon_center.png")`,
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+};
+
+export const battlefieldCSS = {};
